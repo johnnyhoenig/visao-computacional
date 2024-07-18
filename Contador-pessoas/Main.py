@@ -39,13 +39,19 @@ def main():
     captura = cv2.VideoCapture(ARQUIVO_VIDEO)
     detector_pessoas = carregar_modelo(ARQUIVO_MODELO, ARQUIVO_CFG)
     pausado = False
-    linha_contagem = 400  # Posição y da linha de contagem
+    contador_pessoas = 0
+    linha_contagem = 300  # Posição y da linha de contagem
+    detectados = []
 
     while True:
         if not pausado:
             ret, frame = captura.read()
             if not ret:
                 break
+
+            (altura, largura) = frame.shape[:2]
+            if linha_contagem >= altura:
+                linha_contagem = altura // 2  # Ajustar a linha para ficar no meio se estiver fora dos limites
 
             # Criação do blob a partir do frame e realização da detecção
             blob = cv2.dnn.blobFromImage(frame, size=(300, 300), swapRB=True, crop=False)
@@ -59,7 +65,6 @@ def main():
             for i in range(deteccoes.shape[2]):
                 confianca = deteccoes[0, 0, i, 2]
                 if confianca > 0.5:
-                    (altura, largura) = frame.shape[:2]
                     caixa = deteccoes[0, 0, i, 3:7] * np.array([largura, altura, largura, altura])
                     (inicioX, inicioY, fimX, fimY) = caixa.astype("int")
                     caixas.append([inicioX, inicioY, fimX - inicioX, fimY - inicioY])
@@ -68,12 +73,26 @@ def main():
             # Aplicação da supressão não máxima para finalizar as caixas delimitadoras
             caixas_finais = aplicar_supressao_nao_maxima(caixas, confiancas, limiar_conf=0.5, limiar_supr=0.4)
             numero_pessoas = len(caixas_finais)
-            cv2.line()
 
-            # Desenho das caixas e exibição do número de pessoas detectadas
+            # Verifica se pessoas cruzaram a linha de contagem
+            novos_detectados = []
             for (inicioX, inicioY, largura, altura) in caixas_finais:
+                centro_y = inicioY + altura // 2
+                if linha_contagem - 10 < centro_y < linha_contagem + 10:
+                    if inicioX not in detectados:
+                        contador_pessoas += 1
+                        detectados.append(inicioX)
+                novos_detectados.append(inicioX)
                 cv2.rectangle(frame, (inicioX, inicioY), (inicioX + largura, inicioY + altura), (0, 255, 0), 2)
+            
+            detectados = novos_detectados
+
+            # Desenho da linha de contagem
+            cv2.line(frame, (0, linha_contagem), (largura, linha_contagem), (0, 0, 255), 2)
+
+            # Exibição do número de pessoas detectadas e contadas
             cv2.putText(frame, f"Pessoas: {numero_pessoas}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(frame, f"Contador: {contador_pessoas}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         # Exibição do frame processado e controle de pausa/play
         cv2.imshow("Rastreio de Pessoas", frame)
