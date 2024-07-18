@@ -42,6 +42,7 @@ def main():
     contador_pessoas = 0
     linha_contagem = 300  # Posição y da linha de contagem
     detectados = []
+    max_pessoas = 0
 
     while True:
         if not pausado:
@@ -73,22 +74,28 @@ def main():
             # Aplicação da supressão não máxima para finalizar as caixas delimitadoras
             caixas_finais = aplicar_supressao_nao_maxima(caixas, confiancas, limiar_conf=0.5, limiar_supr=0.4)
             numero_pessoas = len(caixas_finais)
-
             # Verifica se pessoas cruzaram a linha de contagem
             novos_detectados = []
+            #print(caixa)
+            #[148.83052826 212.41750002 216.12827301 254.85824347]
+            #print(caixas_finais)
+            #[[np.int64(536), np.int64(68), np.int64(100), np.int64(236)]
             for (inicioX, inicioY, largura, altura) in caixas_finais:
-                centro_y = inicioY + altura // 2
-                if linha_contagem - 10 < centro_y < linha_contagem + 10:
+                linha = inicioY + largura // 2
+                if linha_contagem -8 < linha > linha_contagem + 8:
                     if inicioX not in detectados:
                         contador_pessoas += 1
                         detectados.append(inicioX)
                 novos_detectados.append(inicioX)
+                if numero_pessoas > max_pessoas:
+                    max_pessoas = numero_pessoas
                 cv2.rectangle(frame, (inicioX, inicioY), (inicioX + largura, inicioY + altura), (0, 255, 0), 2)
+                cv2.putText(frame, f"Maximo: {max_pessoas}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             
             detectados = novos_detectados
 
             # Desenho da linha de contagem
-            cv2.line(frame, (0, linha_contagem), (largura, linha_contagem), (0, 0, 255), 2)
+            cv2.line(frame, (linha_contagem, 400), (linha_contagem, 0), (0, 0, 255), 2)
 
             # Exibição do número de pessoas detectadas e contadas
             cv2.putText(frame, f"Pessoas: {numero_pessoas}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
